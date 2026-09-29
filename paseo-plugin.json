@@ -1,0 +1,7 @@
+{
+  "id": "agent-router",
+  "description": "Route omp models at the Paseo level: fall back from exhausted providers (e.g. Codex) to another model, or force the switch, for agents and their omp tasks.",
+  "requirements": {
+    "paseo": ">=0.9.2"
+  }
+}
