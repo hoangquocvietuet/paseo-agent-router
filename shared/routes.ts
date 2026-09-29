@@ -1,23 +1,31 @@
 import { z } from "zod";
 
 /**
- * `from` uses omp's fallback-chain key syntax: an exact `provider/model-id` or `provider/*` for
- * every model of a provider. `to` is the ordered list of replacement selectors.
+ * Selectors follow omp's fallback-chain key syntax: an exact `provider/model-id`, or
+ * `provider/*` for every model of a provider.
  */
+const SelectorSchema = z.string().trim().min(1);
+
+/** Fallback only: keep `from`, move to `to` (in order) when `from` hits quota or rate limits. */
 export const RouteSchema = z.object({
-  from: z.string().trim().min(1),
-  to: z.array(z.string().trim().min(1)).min(1),
+  from: SelectorSchema,
+  to: z.array(SelectorSchema).min(1),
 });
 export type Route = z.infer<typeof RouteSchema>;
 
-/** Model selectors may carry a thinking suffix (`provider/model:high`); routing ignores it. */
-export function matchesRoute(model: string, from: string): boolean {
+/** Switch now: wherever omp would use `from`, use `to` instead. */
+export const PairSchema = z.object({ from: SelectorSchema, to: SelectorSchema });
+export type Pair = z.infer<typeof PairSchema>;
+
+/** Model selectors may carry a thinking suffix (`provider/model:high`); matching ignores it. */
+export function matchesSelector(model: string, from: string): boolean {
   const bare = model.split(":")[0];
   return from.endsWith("/*") ? bare.startsWith(from.slice(0, -1)) : bare === from;
 }
 
-export function findRoute(model: string, routes: readonly Route[]): Route | undefined {
-  return routes.find((route) => matchesRoute(model, route.from));
+/** First matching pair wins, so session pairs listed before global pairs override them. */
+export function switchTarget(model: string, pairs: readonly Pair[]): string | undefined {
+  return pairs.find((pair) => matchesSelector(model, pair.from))?.to;
 }
 
 /** One route per line: `from -> to[, fallback…]`. Blank lines and `#` comments are ignored. */
